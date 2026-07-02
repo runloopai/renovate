@@ -1599,6 +1599,14 @@ describe('util/git/index', { timeout: 30000 }, () => {
       expect(branch).toBe('develop');
     });
 
+    it('should bind directly to the working tree without cloning when platform=local', async () => {
+      await git.initRepo({ url: origin.path });
+      GlobalConfig.set({ localDir: tmpDir.path, platform: 'local' });
+      await expect(git.syncGit()).resolves.toBeUndefined();
+      // Confirms the git client is actually usable (bound to localDir), not just that syncGit() didn't throw.
+      await expect(git.getRepoStatus()).resolves.toBeDefined();
+    });
+
     it('should set core.hooksPath when RENOVATE_X_CLEAR_HOOKS is set', async () => {
       // set up our repo again, so we can initialise it with `RENOVATE_X_CLEAR_HOOKS`
       tmpDir = await tmp.dir({ unsafeCleanup: true });

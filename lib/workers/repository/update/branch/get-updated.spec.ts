@@ -1,6 +1,7 @@
 import { isArray } from '@sindresorhus/is';
 import { mockDeep } from 'vitest-mock-extended';
-import { git, logger } from '~test/util.ts';
+import { fs, git, logger } from '~test/util.ts';
+import { GlobalConfig } from '../../../../config/global.ts';
 import { GitRefsDatasource } from '../../../../modules/datasource/git-refs/index.ts';
 import * as _batectWrapper from '../../../../modules/manager/batect-wrapper/index.ts';
 import * as _bundler from '../../../../modules/manager/bundler/index.ts';
@@ -44,6 +45,7 @@ vi.mock('../../../../modules/manager/batect-wrapper/index.ts');
 vi.mock('../../../../modules/manager/pep621/index.ts');
 vi.mock('../../../../modules/manager/pip-compile/index.ts');
 vi.mock('../../../../modules/manager/poetry/index.ts');
+vi.mock('../../../../util/fs/index.ts');
 vi.mock('./auto-replace.ts');
 
 describe('workers/repository/update/branch/get-updated', () => {
@@ -153,6 +155,39 @@ describe('workers/repository/update/branch/get-updated', () => {
             contents: 'some new content',
           },
         ],
+      });
+    });
+
+    describe('platform=local', () => {
+      beforeEach(() => {
+        GlobalConfig.set({ platform: 'local' });
+      });
+
+      afterEach(() => {
+        GlobalConfig.reset();
+      });
+
+      it('reads file content from the working tree instead of a git ref', async () => {
+        config.reuseExistingBranch = true;
+        config.upgrades.push({
+          packageFile: 'package.json',
+          manager: 'npm',
+          branchName: 'some-branch',
+        } satisfies BranchUpgradeConfig);
+        fs.readLocalFile.mockResolvedValueOnce('existing content');
+        npm.updateDependency.mockReturnValue('some new content');
+        const res = await getUpdatedPackageFiles(config);
+        expect(fs.readLocalFile).toHaveBeenCalledWith('package.json', 'utf8');
+        expect(git.getFile).not.toHaveBeenCalled();
+        expect(res).toMatchSnapshot({
+          updatedPackageFiles: [
+            {
+              type: 'addition',
+              path: 'package.json',
+              contents: 'some new content',
+            },
+          ],
+        });
       });
     });
 

@@ -6,12 +6,16 @@ import type {
   Pr,
   RepoResult,
 } from '../types.ts';
+import { captureLocalBaselineDirtyFiles } from './scm.ts';
 
 export const id = 'local';
 export const experimental = true;
 
 export function initPlatform(params: PlatformParams): Promise<PlatformResult> {
-  const dryRun = params.dryRun === 'extract' ? 'extract' : 'lookup';
+  let dryRun: 'extract' | 'full' | 'lookup' = 'lookup';
+  if (params.dryRun === 'extract' || params.dryRun === 'full') {
+    dryRun = params.dryRun;
+  }
   return Promise.resolve({
     dryRun,
     endpoint: 'local',
@@ -24,12 +28,16 @@ export function getRepos(): Promise<string[]> {
   return Promise.resolve([]);
 }
 
-export function initRepo(): Promise<RepoResult> {
-  return Promise.resolve({
+export async function initRepo(): Promise<RepoResult> {
+  // Snapshot any pre-existing uncommitted changes before Renovate writes
+  // anything, so a `dryRun=full` local commit can detect and avoid
+  // silently absorbing the user's own working tree edits.
+  await captureLocalBaselineDirtyFiles();
+  return {
     defaultBranch: '',
     isFork: false,
     repoFingerprint: '',
-  });
+  };
 }
 
 export function findIssue(): Promise<null> {

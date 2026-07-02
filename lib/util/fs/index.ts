@@ -68,11 +68,34 @@ export async function writeLocalFile(
   await fs.outputFile(localFileName, fileContent);
 }
 
-export async function deleteLocalFile(fileName: string): Promise<void> {
-  // This a failsafe and hopefully will never be triggered
-  if (GlobalConfig.get('platform') === 'local') {
-    throw new Error('Cannot delete file when platform=local');
+export async function writeLocalSymlink(
+  fileName: string,
+  linkTarget: string,
+): Promise<void> {
+  // Only the link's own location is validated - `linkTarget` isn't checked
+  // against `localDir`, matching the canonical git committer's handling of
+  // symlinks (lib/util/git/index.ts).
+  const localFileName = ensureLocalPath(fileName);
+  await fs.symlink(linkTarget, localFileName);
+}
+
+/**
+ * Outside of `platform=local` with `dryRun=full` (where this is a real,
+ * expected write, e.g. lock file maintenance deleting a lock file before
+ * regenerating it), a write here means Renovate's dry-run/lookup mode wasn't
+ * fully read-only. This is a failsafe and hopefully will never be triggered.
+ */
+function assertLocalWriteAllowed(): void {
+  if (
+    GlobalConfig.get('platform') === 'local' &&
+    GlobalConfig.get('dryRun') !== 'full'
+  ) {
+    throw new Error('Cannot write file when platform=local');
   }
+}
+
+export async function deleteLocalFile(fileName: string): Promise<void> {
+  assertLocalWriteAllowed();
   const localDir = GlobalConfig.get('localDir');
   if (localDir) {
     const localFileName = ensureLocalPath(fileName);
@@ -84,6 +107,7 @@ export async function renameLocalFile(
   fromFile: string,
   toFile: string,
 ): Promise<void> {
+  assertLocalWriteAllowed();
   const fromPath = ensureLocalPath(fromFile);
   const toPath = ensureLocalPath(toFile);
   await fs.move(fromPath, toPath);

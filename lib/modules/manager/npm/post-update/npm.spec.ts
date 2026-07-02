@@ -133,6 +133,36 @@ describe('modules/manager/npm/post-update/npm', () => {
     expect(execSnapshots).toMatchSnapshot();
   });
 
+  it('restores package.json for isLockfileUpdate deps when platform=local', async () => {
+    GlobalConfig.set({
+      localDir: '',
+      binarySource: 'global',
+      platform: 'local',
+    });
+    mockExecAll();
+    fs.readLocalFile
+      .mockResolvedValueOnce('{"dependencies":{"some-dep":"^1.0.0"}}') // package.json snapshot
+      .mockResolvedValueOnce('package-lock-contents');
+    const skipInstalls = true;
+    const updates = [
+      { packageName: 'some-dep', newVersion: '1.0.1', isLockfileUpdate: true },
+    ];
+    const res = await npmHelper.generateLockFile(
+      'some-dir',
+      {},
+      'package-lock.json',
+      { skipInstalls, constraints: { npm: '^6.0.0' } },
+      updates,
+    );
+    expect(fs.readLocalFile).toHaveBeenCalledTimes(2);
+    expect(fs.writeLocalFile).toHaveBeenCalledExactlyOnceWith(
+      upath.join('some-dir', 'package.json'),
+      '{"dependencies":{"some-dep":"^1.0.0"}}',
+    );
+    expect(res.error).toBeFalse();
+    expect(res.lockFile).toBe('package-lock-contents');
+  });
+
   it('performs npm-shrinkwrap.json updates', async () => {
     const execSnapshots = mockExecAll();
     fs.localPathExists.mockResolvedValueOnce(true);

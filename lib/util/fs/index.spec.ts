@@ -224,6 +224,16 @@ describe('util/fs/index', () => {
       await deleteLocalFile('foo/bar/file.txt');
       expect(await fs.pathExists(filePath)).toBeFalse();
     });
+
+    it('deletes file when platform is local and dryRun is full', async () => {
+      GlobalConfig.set({ localDir, platform: 'local', dryRun: 'full' });
+      const filePath = `${localDir}/foo/bar/file.txt`;
+      await fs.outputFile(filePath, 'foobar');
+
+      expect(await fs.pathExists(filePath)).toBeTrue();
+      await deleteLocalFile('foo/bar/file.txt');
+      expect(await fs.pathExists(filePath)).toBeFalse();
+    });
   });
 
   describe('renameLocalFile', () => {
@@ -234,6 +244,22 @@ describe('util/fs/index', () => {
 
       expect(await fs.pathExists(sourcePath)).toBeTrue();
       expect(await fs.pathExists(targetPath)).toBeFalse();
+      await renameLocalFile('foo.txt', 'bar.txt');
+      expect(await fs.pathExists(sourcePath)).toBeFalse();
+      expect(await fs.pathExists(targetPath)).toBeTrue();
+    });
+
+    it('throws if platform is local and dryRun is not full', async () => {
+      GlobalConfig.set({ platform: 'local' });
+      await expect(renameLocalFile('foo.txt', 'bar.txt')).rejects.toThrow();
+    });
+
+    it('renames file when platform is local and dryRun is full', async () => {
+      GlobalConfig.set({ localDir, platform: 'local', dryRun: 'full' });
+      const sourcePath = `${localDir}/foo.txt`;
+      const targetPath = `${localDir}/bar.txt`;
+      await fs.outputFile(sourcePath, 'foobar');
+
       await renameLocalFile('foo.txt', 'bar.txt');
       expect(await fs.pathExists(sourcePath)).toBeFalse();
       expect(await fs.pathExists(targetPath)).toBeTrue();
