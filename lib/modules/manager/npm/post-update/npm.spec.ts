@@ -86,7 +86,9 @@ describe('modules/manager/npm/post-update/npm', () => {
 
   it('performs lock file updates', async () => {
     const execSnapshots = mockExecAll();
-    fs.readLocalFile.mockResolvedValueOnce('package-lock-contents');
+    fs.readLocalFile
+      .mockResolvedValueOnce('{}') // package.json snapshot
+      .mockResolvedValueOnce('package-lock-contents');
     const skipInstalls = true;
     const updates = [
       { packageName: 'some-dep', newVersion: '1.0.1', isLockfileUpdate: true },
@@ -98,7 +100,7 @@ describe('modules/manager/npm/post-update/npm', () => {
       { skipInstalls, constraints: { npm: '^6.0.0' } },
       updates,
     );
-    expect(fs.readLocalFile).toHaveBeenCalledTimes(1);
+    expect(fs.readLocalFile).toHaveBeenCalledTimes(2);
     expect(res.error).toBeFalse();
     expect(res.lockFile).toBe('package-lock-contents');
     expect(execSnapshots).toMatchSnapshot();
@@ -106,9 +108,11 @@ describe('modules/manager/npm/post-update/npm', () => {
 
   it('performs lock file updates retaining the package.json counterparts', async () => {
     const execSnapshots = mockExecAll();
-    fs.readLocalFile.mockResolvedValueOnce(
-      Fixtures.get('update-lockfile-massage-1/package-lock.json'),
-    );
+    fs.readLocalFile
+      .mockResolvedValueOnce('{}') // package.json snapshot
+      .mockResolvedValueOnce(
+        Fixtures.get('update-lockfile-massage-1/package-lock.json'),
+      );
     const skipInstalls = true;
     const updates = [
       {
@@ -127,7 +131,7 @@ describe('modules/manager/npm/post-update/npm', () => {
       { skipInstalls, constraints: { npm: '^6.0.0' } },
       updates,
     );
-    expect(fs.readLocalFile).toHaveBeenCalledTimes(1);
+    expect(fs.readLocalFile).toHaveBeenCalledTimes(2);
     expect(res.error).toBeFalse();
     expect(res.lockFile).toMatchSnapshot();
     expect(execSnapshots).toMatchSnapshot();
@@ -706,7 +710,7 @@ describe('modules/manager/npm/post-update/npm', () => {
         { skipInstalls },
         updates,
       );
-      expect(fs.readLocalFile).toHaveBeenCalledTimes(3);
+      expect(fs.readLocalFile).toHaveBeenCalledTimes(7);
       expect(res.error).toBeFalse();
       expect(execSnapshots).toMatchObject([
         {
@@ -744,7 +748,7 @@ describe('modules/manager/npm/post-update/npm', () => {
         { skipInstalls },
         modifiedUpdates,
       );
-      expect(fs.readLocalFile).toHaveBeenCalledTimes(3);
+      expect(fs.readLocalFile).toHaveBeenCalledTimes(7);
       expect(res.error).toBeFalse();
       expect(execSnapshots).toMatchObject([
         {
@@ -917,7 +921,7 @@ describe('modules/manager/npm/post-update/npm', () => {
           },
         ],
       );
-      expect(fs.readLocalFile).toHaveBeenCalledTimes(3);
+      expect(fs.readLocalFile).toHaveBeenCalledTimes(5);
       expect(res.error).toBeFalse();
       expect(execSnapshots).toMatchObject([
         {

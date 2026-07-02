@@ -1,4 +1,9 @@
 import * as platform from './index.ts';
+import { captureLocalBaselineDirtyFiles } from './scm.ts';
+
+vi.mock('./scm.ts', () => ({
+  captureLocalBaselineDirtyFiles: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe('modules/platform/local/index', () => {
   describe('initPlatform', () => {
@@ -26,10 +31,23 @@ describe('modules/platform/local/index', () => {
       });
     });
 
-    it('falls back to lookup when dryRun=full is requested', async () => {
+    it('honors an explicit dryRun=full override', async () => {
       await expect(
         platform.initPlatform({
           dryRun: 'full',
+        }),
+      ).resolves.toEqual({
+        dryRun: 'full',
+        endpoint: 'local',
+        persistRepoData: true,
+        requireConfig: 'optional',
+      });
+    });
+
+    it('falls back to lookup for unsupported dryRun values', async () => {
+      await expect(
+        platform.initPlatform({
+          dryRun: 'bogus' as never,
         }),
       ).resolves.toEqual({
         dryRun: 'lookup',
@@ -55,6 +73,11 @@ describe('modules/platform/local/index', () => {
           "repoFingerprint": "",
         }
       `);
+    });
+
+    it('captures the baseline dirty file set before returning', async () => {
+      await platform.initRepo();
+      expect(captureLocalBaselineDirtyFiles).toHaveBeenCalledOnce();
     });
   });
 

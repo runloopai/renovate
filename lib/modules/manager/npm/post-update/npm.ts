@@ -22,6 +22,7 @@ import {
   localPathExists,
   readLocalFile,
   renameLocalFile,
+  writeLocalFile,
 } from '../../../../util/fs/index.ts';
 import { minimatch } from '../../../../util/minimatch.ts';
 import { toMs } from '../../../../util/pretty-time.ts';
@@ -245,6 +246,18 @@ export async function generateLockFile(
     const { lockRootUpdates, lockWorkspacesUpdates, workspaces, rootDeps } =
       divideWorkspaceAndRootDeps(lockFileDir, lockUpdates);
 
+    // These deps are isLockfileUpdate, so only the lock file should change.
+    // npm's `--no-save` skips resolving to the pinned version when the
+    // current package.json range already permits it, so we let npm save
+    // normally and restore package.json's prior content afterwards instead.
+    const packageJsonSnapshots = new Map<string, string | null>();
+    const snapshotPackageJson = async (dir: string): Promise<void> => {
+      const path = upath.join(dir, 'package.json');
+      if (!packageJsonSnapshots.has(path)) {
+        packageJsonSnapshots.set(path, await readLocalFile(path, 'utf8'));
+      }
+    };
+
     if (workspaces.size && lockWorkspacesUpdates.length) {
       logger.debug('Performing lockfileUpdate (npm-workspaces)');
       for (const workspace of workspaces) {
@@ -255,6 +268,7 @@ export async function generateLockFile(
 
         // v8 ignore else -- TODO: add test #40625
         if (currentWorkspaceUpdates.length) {
+          await snapshotPackageJson(upath.join(lockFileDir, workspace));
           const updateCmd = `npm install ${cmdOptions}${beforeFlag} --workspace=${quote(workspace)} ${currentWorkspaceUpdates
             .map(quote)
             .join(' ')}`;
@@ -265,6 +279,7 @@ export async function generateLockFile(
 
     if (lockRootUpdates.length) {
       logger.debug('Performing lockfileUpdate (npm)');
+      await snapshotPackageJson(lockFileDir);
       const updateCmd = `npm install ${cmdOptions}${beforeFlag} ${lockRootUpdates
         .map((update) => update.managerData?.packageKey)
         .map(quote)
@@ -327,6 +342,14 @@ export async function generateLockFile(
       }
       throw err;
     });
+
+    // Restore package.json files that isLockfileUpdate installs pinned to an
+    // explicit version - only the lock file should change for those deps.
+    for (const [path, contents] of packageJsonSnapshots) {
+      if (contents !== null) {
+        await writeLocalFile(path, contents);
+      }
+    }
 
     // massage to shrinkwrap if necessary
     if (

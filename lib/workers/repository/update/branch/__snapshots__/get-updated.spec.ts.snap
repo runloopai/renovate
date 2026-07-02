@@ -202,6 +202,22 @@ exports[`workers/repository/update/branch/get-updated > getUpdatedPackageFiles()
 }
 `;
 
+exports[`workers/repository/update/branch/get-updated > getUpdatedPackageFiles() > platform=local > reads file content from the working tree instead of a git ref 1`] = `
+{
+  "artifactErrors": [],
+  "artifactNotices": [],
+  "reuseExistingBranch": false,
+  "updatedArtifacts": [],
+  "updatedPackageFiles": [
+    {
+      "contents": "some new content",
+      "path": "package.json",
+      "type": "addition",
+    },
+  ],
+}
+`;
+
 exports[`workers/repository/update/branch/get-updated > getUpdatedPackageFiles() > update artifacts on update-lockfile strategy 1`] = `
 {
   "artifactErrors": [],

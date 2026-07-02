@@ -448,9 +448,14 @@ export const syncGit = withInstrumenting(
       }
       return;
     }
-    /* v8 ignore if -- TODO: add test #40625 */
     if (GlobalConfig.get('platform') === 'local') {
-      throw new Error('Cannot sync git when platform=local');
+      // No remote to clone/fetch - bind directly to the existing working
+      // tree, which already holds the branch Renovate is meant to operate on.
+      git = instrumentGit(
+        createSimpleGit({ config: { baseDir: GlobalConfig.get('localDir') } }),
+      );
+      gitInitialized = true;
+      return;
     }
     gitInitialized = true;
     const localDir = GlobalConfig.get('localDir');
