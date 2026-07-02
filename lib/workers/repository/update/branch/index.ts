@@ -51,7 +51,10 @@ import { setArtifactErrorStatus } from './artifacts.ts';
 import { tryBranchAutomerge } from './automerge.ts';
 import { bumpVersions } from './bump-versions.ts';
 import { prAlreadyExisted } from './check-existing.ts';
-import { commitFilesToBranch } from './commit.ts';
+import {
+  checkLocalDirtyOverlapBeforeWrite,
+  commitFilesToBranch,
+} from './commit.ts';
 import executePostUpgradeCommands from './execute-post-upgrade-commands.ts';
 import { getUpdatedPackageFiles } from './get-updated.ts';
 import { handleClosedPr, handleModifiedPr } from './handle-existing.ts';
@@ -602,6 +605,12 @@ export async function processBranch(
       )
     ) {
       await scm.checkoutBranch(config.baseBranch);
+      if (
+        GlobalConfig.get('dryRun') &&
+        GlobalConfig.get('platform') === 'local'
+      ) {
+        checkLocalDirtyOverlapBeforeWrite(config);
+      }
       const res = await getUpdatedPackageFiles(config);
       if (res.artifactErrors && config.artifactErrors) {
         res.artifactErrors = config.artifactErrors.concat(res.artifactErrors);
